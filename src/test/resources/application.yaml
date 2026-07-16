@@ -7,3 +7,9 @@ mp:
           name: staple-commands
           declare: true
           type: direct
+quarkus:
+  devservices:
+    enabled: false
+
+
+
