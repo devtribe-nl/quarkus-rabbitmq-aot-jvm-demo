@@ -1,0 +1,25 @@
+mp:
+  messaging:
+    outgoing:
+      staple-commands-out:
+        connector: smallrye-in-memory
+
+quarkus:
+  test:
+    integration-test-profile: integration-test
+  devservices:
+    enabled: false
+
+"%integration-test":
+  quarkus:
+    devservices:
+      enabled: false
+  mp:
+    messaging:
+      outgoing:
+        staple-commands-out:
+          connector: smallrye-rabbitmq
+          exchange:
+            name: staple-commands
+            declare: true
+            type: direct
