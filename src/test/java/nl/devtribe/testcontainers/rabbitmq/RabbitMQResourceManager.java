@@ -1,19 +1,27 @@
 package nl.devtribe.testcontainers.rabbitmq;
 
 import io.quarkus.test.common.DevServicesContext;
-import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
+import io.quarkus.test.common.QuarkusTestResourceConfigurableLifecycleManager;
+import nl.devtribe.testcontainers.rabbitmq.exchanges.ExchangeType;
+import nl.devtribe.testcontainers.rabbitmq.servers.RabbitMQContainerServer;
+import nl.devtribe.testcontainers.rabbitmq.servers.RabbitMQInMemoryTestServer;
+import nl.devtribe.testcontainers.rabbitmq.servers.TestServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 import static com.rabbitmq.client.ConnectionFactory.*;
 
-public class RabbitMQResourceManager implements QuarkusTestResourceLifecycleManager, DevServicesContext.ContextAware {
+public class RabbitMQResourceManager
+        implements QuarkusTestResourceConfigurableLifecycleManager<WithRabbitMQHybridServer>,
+                DevServicesContext.ContextAware {
     private static final Logger log = LoggerFactory.getLogger(RabbitMQResourceManager.class);
 
     private static final int AMQP_PORT = 5672;
@@ -25,8 +33,18 @@ public class RabbitMQResourceManager implements QuarkusTestResourceLifecycleMana
     private static final String RABBITMQ_PASSWORD_PROP = "rabbitmq-password";
 
     private DevServicesContext context;
-    private RabbitMQServer rabbitMQServer;
+
+    private TestServer server;
+    private RabbitMQContainerServer rabbitMQServer;
     private RabbitMQContainer rabbitMQContainer;
+
+    private List<ExchangeType> exchanges;
+
+    @Override
+    public void init(WithRabbitMQHybridServer initArgs) {
+        this.exchanges =
+                Arrays.stream(initArgs.exchanges()).map(ExchangeType::toModel).toList();
+    }
 
     @Override
     public void setIntegrationTestContext(DevServicesContext context) {
@@ -36,6 +54,8 @@ public class RabbitMQResourceManager implements QuarkusTestResourceLifecycleMana
     @Override
     public Map<String, String> start() {
 
+        this.server = new RabbitMQInMemoryTestServer();
+        this.server.init(exchanges);
         rabbitMQContainer = new RabbitMQContainer(DockerImageName.parse("rabbitmq:4.2-management"));
         context.containerNetworkId().ifPresent(rabbitMQContainer::withNetworkMode);
 
@@ -47,7 +67,7 @@ public class RabbitMQResourceManager implements QuarkusTestResourceLifecycleMana
         final int port =
                 context.containerNetworkId().map(ctx -> AMQP_PORT).orElseGet(() -> rabbitMQContainer.getAmqpPort());
 
-        rabbitMQServer = new RabbitMQServer(DEFAULT_HOST, rabbitMQContainer.getAmqpPort());
+        rabbitMQServer = new RabbitMQContainerServer(DEFAULT_HOST, rabbitMQContainer.getAmqpPort());
         return Map.of(
                 RABBITMQ_HOST_PROP, host,
                 RABBITMQ_PORT_PROP, String.valueOf(port),
@@ -75,6 +95,6 @@ public class RabbitMQResourceManager implements QuarkusTestResourceLifecycleMana
         }
         testInjector.injectIntoFields(
                 rabbitMQServer,
-                new TestInjector.AnnotatedAndMatchesType(InjectRabbitMQServer.class, RabbitMQServer.class));
+                new TestInjector.AnnotatedAndMatchesType(InjectRabbitMQServer.class, RabbitMQContainerServer.class));
     }
 }

@@ -1,6 +1,8 @@
-package nl.devtribe.testcontainers.rabbitmq;
+package nl.devtribe.testcontainers.rabbitmq.servers;
 
 import com.rabbitmq.client.*;
+import nl.devtribe.testcontainers.rabbitmq.RabbitMQMessage;
+import nl.devtribe.testcontainers.rabbitmq.exchanges.ExchangeType;
 
 import java.io.IOException;
 import java.util.*;
@@ -8,7 +10,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeoutException;
 
-public class RabbitMQServer implements AutoCloseable {
+public class RabbitMQContainerServer implements AutoCloseable, TestServer {
 
     // This POC doenst use a fancy full implemented rabbitmq server
 
@@ -17,7 +19,7 @@ public class RabbitMQServer implements AutoCloseable {
     private final Connection connection;
     private final Channel channel;
 
-    RabbitMQServer(String host, int amqpPort) {
+    RabbitMQContainerServer(String host, int amqpPort) {
         ConnectionFactory factory = new ConnectionFactory();
         final Address address = new Address(host, amqpPort);
         try {
@@ -77,6 +79,17 @@ public class RabbitMQServer implements AutoCloseable {
         }
     }
 
+    @Override
+    public Map<String, String> init(List<ExchangeType> args) {
+        return Map.of();
+    }
+
+    @Override
+    public void stop() {
+
+    }
+
+    @Override
     public void reset() throws IOException {
         for (String tag : consumerTags) {
             channel.basicCancel(tag);
